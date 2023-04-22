@@ -30,6 +30,7 @@ import github.andriantony.periscope.exception.IllegalOperationException;
 import github.andriantony.periscope.exception.NoAnnotationException;
 import github.andriantony.periscope.exception.NotNullableException;
 import github.andriantony.periscope.exception.OverLimitException;
+import github.andriantony.periscope.exception.UniqueFieldViolationException;
 import github.andriantony.periscope.type.Model;
 import java.lang.reflect.Field;
 import java.util.Arrays;
@@ -109,6 +110,24 @@ public class Verificator {
 
         if (!Arrays.asList(permissions).contains(permission)) {
             throw new IllegalOperationException("Table " + modelClass.getSimpleName() + " does not have the " + permission + " permission");
+        }
+    }
+    
+    /**
+     * Verify whether two models have conflicting unique field values.
+     * Will throw an exception if both of them have different primary key values.
+     * 
+     * @param sourceModel The model object to compare against the uniqueRow object
+     * @param uniqueRow The model object to compare against the sourceModel object
+     * @param primaryField The primary key field that uniquely identifies the model
+     * @param uniqueField The field to retrieve the name of in an exception
+     * @throws IllegalAccessException if there was an error accessing the primaryField or uniqueField
+     * @throws UniqueFieldViolationException if the primaryField value of the sourceModel object doesn't match with the primaryField value of the uniqueRow object
+     */
+    public void verifyUniqueness(Model sourceModel, Model uniqueRow, Field primaryField, Field uniqueField) throws IllegalAccessException, UniqueFieldViolationException {
+        if (uniqueRow != null) {
+            if (!primaryField.get(sourceModel).equals(primaryField.get(uniqueRow)))
+                throw new UniqueFieldViolationException("The unique value " + uniqueField.get(uniqueRow) + " already exists");
         }
     }
 

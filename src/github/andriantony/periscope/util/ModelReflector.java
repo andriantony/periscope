@@ -34,6 +34,7 @@ import github.andriantony.periscope.exception.NoAnnotationException;
 import github.andriantony.periscope.exception.NoSuchColumnException;
 import github.andriantony.periscope.exception.NotNullableException;
 import github.andriantony.periscope.exception.OverLimitException;
+import github.andriantony.periscope.exception.UniqueFieldViolationException;
 import github.andriantony.periscope.type.Expression;
 import github.andriantony.periscope.type.FieldReference;
 import github.andriantony.periscope.type.Model;
@@ -179,6 +180,29 @@ public final class ModelReflector {
     }
 
     /**
+     * Retrieves the primary key field from the given model.
+     * 
+     * @param model The model to retrieve the field from
+     * @return the field object of the primary key column
+     * @throws NoSuchColumnException if the {@link Model} class does not have a primary key column
+     */
+    public Field getPrimaryColumn(Model model) throws NoSuchColumnException {
+        Field column = null;
+
+        for (Field field : model.getClass().getDeclaredFields()) {
+            if (field.isAnnotationPresent(Primary.class)) {
+                column = field;
+            }
+        }
+
+        if (column != null) {
+            return column;
+        } else {
+            throw new NoSuchColumnException("This model does not have a primary key column");
+        }
+    }
+    
+    /**
      * Retrieves the field that corresponds to the given column name.
      *
      * @param model The model to retrieve the field from
@@ -198,7 +222,7 @@ public final class ModelReflector {
         if (column != null) {
             return column;
         } else {
-            throw new NoSuchColumnException("This field does not have a column with such name");
+            throw new NoSuchColumnException("This model does not have a column with such name");
         }
     }
 
@@ -246,6 +270,28 @@ public final class ModelReflector {
     }
 
     /**
+     * Returns an array of expression from unique columns.
+     * Unique columns with null value are not included.
+     * 
+     * @param model The model to extract the fields from
+     * @param fieldExpressions The list of field expressions
+     * @return an array of expression from unique columns
+     */
+    public Expression[] getUniqueExpressions(Model model, Expression[] fieldExpressions) {
+        List<Expression> result = new ArrayList<>();
+        
+        for (Field field : model.getClass().getDeclaredFields()) {
+            if (field.isAnnotationPresent(Column.class) && field.getAnnotation(Column.class).unique()) {
+                Expression expression = Arrays.stream(fieldExpressions).filter(expr -> expr.getKey().equals(field.getAnnotation(Column.class).name())).findFirst().orElse(null);
+                if (expression != null && expression.getValue() != null)
+                    result.add(expression);
+            }
+        }
+        
+        return result.toArray(new Expression[0]);
+    }
+    
+    /**
      * Verifies if a given model has the required permission to perform a write operation on it.
      * 
      * @param model The model to verify permission for
@@ -255,6 +301,21 @@ public final class ModelReflector {
      */
     public void verifyPermission(Model model, WritePermission permission) throws NoAnnotationException, IllegalOperationException {
         verificator.verifyPermission(model, permission);
+    }
+    
+    /**
+     * Verify whether two models have conflicting unique field values.
+     * Will throw an exception if both of them have different primary key values.
+     * 
+     * @param sourceModel The model object to compare against the uniqueRow object
+     * @param uniqueRow The model object to compare against the sourceModel object
+     * @param primaryField The primary key field that uniquely identifies the model
+     * @param uniqueField The field to retrieve the name of in an exception
+     * @throws IllegalAccessException if there was an error accessing the primaryField or uniqueField
+     * @throws UniqueFieldViolationException if the primaryField value of the sourceModel object doesn't match with the primaryField value of the uniqueRow object
+     */
+    public void verifyUniqueness(Model sourceModel, Model uniqueRow, Field primaryField, Field uniqueField) throws IllegalAccessException, UniqueFieldViolationException {
+        verificator.verifyUniqueness(sourceModel, uniqueRow, primaryField, uniqueField);
     }
 
 }

@@ -31,6 +31,7 @@ import github.andriantony.periscope.exception.NoAnnotationException;
 import github.andriantony.periscope.exception.NoSuchColumnException;
 import github.andriantony.periscope.exception.NotNullableException;
 import github.andriantony.periscope.exception.OverLimitException;
+import github.andriantony.periscope.exception.UniqueFieldViolationException;
 import github.andriantony.periscope.type.Expression;
 import github.andriantony.periscope.type.FieldReference;
 import github.andriantony.periscope.type.Model;
@@ -38,6 +39,7 @@ import github.andriantony.periscope.type.ModelReference;
 import github.andriantony.periscope.type.Sort;
 import github.andriantony.periscope.util.ModelReflector;
 import github.andriantony.periscope.util.QueryBuilder;
+import java.lang.reflect.Field;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -45,6 +47,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
+import jdk.xml.internal.XMLSecurityManager.Limit;
 
 /**
  * The DatabaseEngine class provides a set of methods for interacting with a
@@ -210,6 +213,10 @@ public final class DatabaseEngine {
      * its fields is missing a required annotation
      * @throws IllegalAccessException if access to a field is denied
      * @throws SQLException if an error occurs while accessing the database
+     * @throws ClassNotFoundException if the class name could not be found
+     * @throws InstantiationException if the dynamic object can not be instantiated
+     * @throws NoSuchColumnException if the provided model does not have the column with specified name
+     * @throws UniqueFieldViolationException if one of the unique values already exists in the database
      * @throws NotNullableException if a field marked with the
      * {@link Column#nullable()} false annotation is null
      * @throws OverLimitException if a field marked with the {@link Limit}
@@ -217,7 +224,7 @@ public final class DatabaseEngine {
      * @throws IllegalOperationException if the model does not have the
      * {@link WritePermission#INSERT} permission
      */
-    public Integer insert(Model model) throws NoAnnotationException, IllegalAccessException, SQLException, NotNullableException, OverLimitException, IllegalOperationException {
+    public Integer insert(Model model) throws NoAnnotationException, IllegalAccessException, SQLException, NotNullableException, OverLimitException, IllegalOperationException, NoSuchColumnException, ClassNotFoundException, InstantiationException, UniqueFieldViolationException {
         reflector.verifyPermission(model, WritePermission.INSERT);
 
         Integer result = null;
@@ -225,6 +232,18 @@ public final class DatabaseEngine {
         String tableName = reflector.getName(model);
         String[] columns = model.getMarkedColumns();
         Expression[] expressions = reflector.getNonPrimaryExpressions(model, columns);
+        
+        for (Expression uniqueExpression : reflector.getUniqueExpressions(model, expressions)) {
+           Field uniqueField = reflector.getColumnByName(model, uniqueExpression.getKey());
+           uniqueField.setAccessible(true);
+           
+           Model caller = (Model) Class.forName(model.getClass().getTypeName()).newInstance();
+           caller.express(uniqueExpression);
+           
+           Model uniqueResult = get(caller);
+           if (uniqueResult != null)
+               throw new UniqueFieldViolationException("The unique value " + uniqueField.get(model) + " already exists");
+        }
 
         builder.reset();
         builder.insert(tableName, expressions);
@@ -264,16 +283,34 @@ public final class DatabaseEngine {
      * not annotated with the required annotation
      * @throws NotNullableException if a non-nullable column has a null value
      * @throws OverLimitException if a value exceeds the column size limit
+     * @throws ClassNotFoundException if the class name could not be found
+     * @throws InstantiationException if the dynamic object can not be instantiated
+     * @throws NoSuchColumnException if the provided model does not have the column with specified name
+     * @throws UniqueFieldViolationException if one of the unique values already exists in the database
      * @throws IllegalOperationException if the model does not have the
      * {@link WritePermission#UPDATE} permission
      */
-    public void update(Model model) throws IllegalAccessException, SQLException, NoAnnotationException, NotNullableException, OverLimitException, IllegalOperationException {
+    public void update(Model model) throws IllegalAccessException, SQLException, NoAnnotationException, NotNullableException, OverLimitException, IllegalOperationException, NoSuchColumnException, ClassNotFoundException, InstantiationException, UniqueFieldViolationException {
         reflector.verifyPermission(model, WritePermission.UPDATE);
 
         String tableName = reflector.getName(model);
         String[] columns = model.getMarkedColumns();
         Expression[] keyExpressions = model.getExpressions().length > 0 ? model.getExpressions() : new Expression[]{reflector.getPrimaryExpression(model)};
         Expression[] valueExpressions = reflector.getNonPrimaryExpressions(model, columns);
+        
+        for (Expression uniqueExpression : reflector.getUniqueExpressions(model, valueExpressions)) {
+           Field primaryField = reflector.getPrimaryColumn(model);
+           Field uniqueField = reflector.getColumnByName(model, uniqueExpression.getKey());
+           
+           primaryField.setAccessible(true);
+           uniqueField.setAccessible(true);
+           
+           Model caller = (Model) Class.forName(model.getClass().getTypeName()).newInstance();
+           caller.express(uniqueExpression);
+           
+           Model uniqueResult = get(caller);
+           reflector.verifyUniqueness(model, uniqueResult, primaryField, uniqueField);
+        }
 
         builder.reset();
         builder.update(tableName, valueExpressions).where(keyExpressions);

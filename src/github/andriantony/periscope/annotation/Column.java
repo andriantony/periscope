@@ -57,6 +57,14 @@ public @interface Column {
     public boolean nullable() default true;
     
     /**
+     * This element specifies whether this column's value is required to be unique.
+     * This element is false by default.
+     * 
+     * @return the field's requirement to hold unique value
+     */
+    public boolean unique() default false;
+    
+    /**
      * The maximum length of a value that can be contained by the column during SQL operations.
      * While the user can assign value of higher length than the specified maximum, it will not be accepted during SQL write operations.
      * Set this element's value higher than -1 to enable length checking for its associated field.
