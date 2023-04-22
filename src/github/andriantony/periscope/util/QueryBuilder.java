@@ -2,6 +2,7 @@ package github.andriantony.periscope.util;
 
 import github.andriantony.periscope.constant.Function;
 import github.andriantony.periscope.type.Expression;
+import github.andriantony.periscope.type.Sort;
 import java.sql.PreparedStatement;
 
 /**
@@ -81,6 +82,26 @@ public final class QueryBuilder {
         for (int i = 0; i < expressions.length; i++) {
             this.query.append(wrap(expressions[i].getKey())).append(' ').append(expressions[i].getOperator()).append(" ?");
             this.query.append(i + 1 < expressions.length ? (' ' + expressions[i].getConjunction().toString() + ' ') : ' ');
+        }
+        
+        return this;
+    }
+    
+    /**
+     * Appends an ORDER BY directive to the query based on the given list of sort conditions.
+     * Will do nothing if the given array is empty.
+     * 
+     * @param sorts An array of Sort directives to use for ordering the query results
+     * @return this instance for further processing
+     */
+    public QueryBuilder orderBy(Sort[] sorts) {
+        if (sorts.length > 0) {
+            this.query.append("ORDER BY ");
+            
+            for (int i = 0; i < sorts.length; i++) {
+                this.query.append(wrap(sorts[i].getColumn())).append(' ').append(sorts[i].getDirection());
+                this.query.append(i + 1 < sorts.length ? ", " : " ");
+            }
         }
         
         return this;

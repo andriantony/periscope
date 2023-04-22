@@ -12,6 +12,7 @@ import github.andriantony.periscope.type.Expression;
 import github.andriantony.periscope.type.FieldReference;
 import github.andriantony.periscope.type.Model;
 import github.andriantony.periscope.type.ModelReference;
+import github.andriantony.periscope.type.Sort;
 import github.andriantony.periscope.util.ModelReflector;
 import github.andriantony.periscope.util.QueryBuilder;
 import java.sql.Connection;
@@ -73,10 +74,11 @@ public final class DatabaseEngine {
         String tableName = reflector.getName(model);
         String[] columns = model.getMarkedColumns();
         Expression[] expressions = model.getExpressions();
+        Sort[] sorts = model.getSorts();
         ModelReference[] includedModels = model.getIncludes();
 
         builder.reset();
-        builder.select(tableName, columns).where(expressions);
+        builder.select(tableName, columns).where(expressions).orderBy(sorts);
 
         try (PreparedStatement statement = connection.prepareCall(builder.toString())) {
             for (int i = 0; i < expressions.length; i++) {
