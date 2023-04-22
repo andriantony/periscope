@@ -299,5 +299,15 @@ public final class DatabaseEngine {
             statement.executeUpdate();
         }
     }
+    
+    /**
+     * Returns the JDBC connection used by this engine.
+     * Useful when the user needs to perform raw SQL queries.
+     * 
+     * @return the JDBC connection this engine is currently using.
+     */
+    public Connection getConnection() {
+        return this.connection;
+    }
 
 }
