@@ -47,7 +47,6 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
-import jdk.xml.internal.XMLSecurityManager.Limit;
 
 /**
  * The DatabaseEngine class provides a set of methods for interacting with a
@@ -144,7 +143,7 @@ public final class DatabaseEngine {
     /**
      * Retrieves a single record from the database that matches the given model
      * object.It calls the
-     * {@link DatabaseEngine#list(com.bizmann.periscope.type.Model)} and returns
+     * {@link DatabaseEngine#list(github.andriantony.periscope.type.Model)} and returns
      * the first object in the list.
      *
      * @param <T> The dynamic type of returned object extending {@link Model}
@@ -219,7 +218,7 @@ public final class DatabaseEngine {
      * @throws UniqueFieldViolationException if one of the unique values already exists in the database
      * @throws NotNullableException if a field marked with the
      * {@link Column#nullable()} false annotation is null
-     * @throws OverLimitException if a field marked with the {@link Limit}
+     * @throws OverLimitException if a field value length exceeds the specified limit
      * annotation exceeds its specified limit
      * @throws IllegalOperationException if the model does not have the
      * {@link WritePermission#INSERT} permission
@@ -269,7 +268,7 @@ public final class DatabaseEngine {
      * Updates the data in the database for the specified model instance. The
      * update is performed based on the primary key value of the model, unless a
      * custom expression is specified via
-     * {@link Model#express(com.bizmann.periscope.type.Expression...)}. Only
+     * {@link Model#express(github.andriantony.periscope.type.Expression...)}. Only
      * columns that have been marked with the {@link Column} annotation will be
      * updated, and any non-nullable columns that are not provided a value will
      * throw a {@link NotNullableException}. Additionally, any column values

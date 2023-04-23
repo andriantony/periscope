@@ -35,17 +35,17 @@ import github.andriantony.periscope.annotation.Table;
 public enum WritePermission {
 
     /**
-     * Allows the {@link DatabaseEngine#insert(com.bizmann.periscope.type.Model)} method to be called on this table.
+     * Allows the {@link DatabaseEngine#insert(github.andriantony.periscope.type.Model)} method to be called on this table.
      */
     INSERT("INESRT"),
     
     /**
-     * Allows the {@link DatabaseEngine#update(com.bizmann.periscope.type.Model)} method to be called on this table.
+     * Allows the {@link DatabaseEngine#update(github.andriantony.periscope.type.Model)} method to be called on this table.
      */
     UPDATE("UPDATE"),
     
     /**
-     * Allows the {@link DatabaseEngine#delete(com.bizmann.periscope.type.Model)} method to be called on this table.
+     * Allows the {@link DatabaseEngine#delete(github.andriantony.periscope.type.Model)} method to be called on this table.
      */
     DELETE("DELETE");
 
