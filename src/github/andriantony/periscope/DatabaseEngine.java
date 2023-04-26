@@ -39,6 +39,7 @@ import github.andriantony.periscope.type.ModelReference;
 import github.andriantony.periscope.type.Sort;
 import github.andriantony.periscope.util.ModelReflector;
 import github.andriantony.periscope.util.QueryBuilder;
+import github.andriantony.periscope.util.Verificator;
 import java.lang.reflect.Field;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -60,6 +61,7 @@ public final class DatabaseEngine {
 
     private final Connection connection;
     private final ModelReflector reflector;
+    private final Verificator verificator;
     private final QueryBuilder builder;
 
     /**
@@ -70,6 +72,7 @@ public final class DatabaseEngine {
     public DatabaseEngine(Connection connection) {
         this.connection = connection;
         this.reflector = new ModelReflector();
+        this.verificator = new Verificator();
         this.builder = new QueryBuilder();
     }
 
@@ -224,13 +227,15 @@ public final class DatabaseEngine {
      * {@link WritePermission#INSERT} permission
      */
     public Integer insert(Model model) throws NoAnnotationException, IllegalAccessException, SQLException, NotNullableException, OverLimitException, IllegalOperationException, NoSuchColumnException, ClassNotFoundException, InstantiationException, UniqueFieldViolationException {
-        reflector.verifyPermission(model, WritePermission.INSERT);
+        verificator.verifyPermission(model, WritePermission.INSERT);
 
         Integer result = null;
 
         String tableName = reflector.getName(model);
         String[] columns = model.getMarkedColumns();
         Expression[] expressions = reflector.getNonPrimaryExpressions(model, columns);
+        
+        verificator.verifyNonNullableInsertion(model, expressions);
         
         for (Expression uniqueExpression : reflector.getUniqueExpressions(model, expressions)) {
            Field uniqueField = reflector.getColumnByName(model, uniqueExpression.getKey());
@@ -290,7 +295,7 @@ public final class DatabaseEngine {
      * {@link WritePermission#UPDATE} permission
      */
     public void update(Model model) throws IllegalAccessException, SQLException, NoAnnotationException, NotNullableException, OverLimitException, IllegalOperationException, NoSuchColumnException, ClassNotFoundException, InstantiationException, UniqueFieldViolationException {
-        reflector.verifyPermission(model, WritePermission.UPDATE);
+        verificator.verifyPermission(model, WritePermission.UPDATE);
 
         String tableName = reflector.getName(model);
         String[] columns = model.getMarkedColumns();
@@ -308,7 +313,7 @@ public final class DatabaseEngine {
            caller.express(uniqueExpression);
            
            Model uniqueResult = get(caller);
-           reflector.verifyUniqueness(model, uniqueResult, primaryField, uniqueField);
+           verificator.verifyUniqueness(model, uniqueResult, primaryField, uniqueField);
         }
 
         builder.reset();
@@ -342,7 +347,7 @@ public final class DatabaseEngine {
      * {@link WritePermission#DELETE} permission
      */
     public void delete(Model model) throws NoAnnotationException, IllegalAccessException, SQLException, IllegalOperationException {
-        reflector.verifyPermission(model, WritePermission.DELETE);
+        verificator.verifyPermission(model, WritePermission.DELETE);
 
         String tableName = reflector.getName(model);
         Expression[] expressions = model.getExpressions().length > 0 ? model.getExpressions() : new Expression[]{reflector.getPrimaryExpression(model)};

@@ -24,6 +24,7 @@
 package github.andriantony.periscope.util;
 
 import github.andriantony.periscope.annotation.Column;
+import github.andriantony.periscope.annotation.Primary;
 import github.andriantony.periscope.annotation.Table;
 import github.andriantony.periscope.constant.WritePermission;
 import github.andriantony.periscope.exception.IllegalOperationException;
@@ -31,9 +32,11 @@ import github.andriantony.periscope.exception.NoAnnotationException;
 import github.andriantony.periscope.exception.NotNullableException;
 import github.andriantony.periscope.exception.OverLimitException;
 import github.andriantony.periscope.exception.UniqueFieldViolationException;
+import github.andriantony.periscope.type.Expression;
 import github.andriantony.periscope.type.Model;
 import java.lang.reflect.Field;
 import java.util.Arrays;
+import java.util.stream.Stream;
 
 /**
  * A class used to verify various rules specified to a table.
@@ -128,6 +131,31 @@ public class Verificator {
         if (uniqueRow != null) {
             if (!primaryField.get(sourceModel).equals(primaryField.get(uniqueRow)))
                 throw new UniqueFieldViolationException("The unique value " + uniqueField.get(uniqueRow) + " already exists");
+        }
+    }
+    
+    /**
+     * Verify whether the provided expressions already includes all non-nullable columns from the given model.
+     * 
+     * @param model The model to retrieve columns from
+     * @param expressions The list of expression marked for insertion
+     * @throws NotNullableException if one of the non-nullable columns is not included in the expression array
+     */
+    public void verifyNonNullableInsertion(Model model, Expression[] expressions) throws NotNullableException {
+        Stream<Expression> stream = Arrays.stream(expressions);
+        
+        for (Field field : model.getClass().getDeclaredFields()) {
+            if (field.isAnnotationPresent(Column.class)) {
+                Column columnAnnotation = field.getAnnotation(Column.class);
+                
+                boolean isPrimary = field.isAnnotationPresent(Primary.class);
+                boolean isNullable = columnAnnotation.nullable();
+                String columnName = columnAnnotation.name();
+                
+                if (!isPrimary && !isNullable && !stream.filter(expr -> expr.getKey().equals(columnName)).findFirst().isPresent()) {
+                    throw new NotNullableException("Non-nullable column " + columnName + " is not marked for insertion");
+                }
+            }
         }
     }
 

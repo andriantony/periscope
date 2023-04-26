@@ -28,13 +28,10 @@ import github.andriantony.periscope.annotation.Primary;
 import github.andriantony.periscope.annotation.Reference;
 import github.andriantony.periscope.annotation.Table;
 import github.andriantony.periscope.constant.Relation;
-import github.andriantony.periscope.constant.WritePermission;
-import github.andriantony.periscope.exception.IllegalOperationException;
 import github.andriantony.periscope.exception.NoAnnotationException;
 import github.andriantony.periscope.exception.NoSuchColumnException;
 import github.andriantony.periscope.exception.NotNullableException;
 import github.andriantony.periscope.exception.OverLimitException;
-import github.andriantony.periscope.exception.UniqueFieldViolationException;
 import github.andriantony.periscope.type.Expression;
 import github.andriantony.periscope.type.FieldReference;
 import github.andriantony.periscope.type.Model;
@@ -289,33 +286,6 @@ public final class ModelReflector {
         }
         
         return result.toArray(new Expression[0]);
-    }
-    
-    /**
-     * Verifies if a given model has the required permission to perform a write operation on it.
-     * 
-     * @param model The model to verify permission for
-     * @param permission The permission required for the write operation
-     * @throws NoAnnotationException if the model class is not annotated with @Table or @Column
-     * @throws IllegalOperationException if the permission is not allowed for the model class
-     */
-    public void verifyPermission(Model model, WritePermission permission) throws NoAnnotationException, IllegalOperationException {
-        verificator.verifyPermission(model, permission);
-    }
-    
-    /**
-     * Verify whether two models have conflicting unique field values.
-     * Will throw an exception if both of them have different primary key values.
-     * 
-     * @param sourceModel The model object to compare against the uniqueRow object
-     * @param uniqueRow The model object to compare against the sourceModel object
-     * @param primaryField The primary key field that uniquely identifies the model
-     * @param uniqueField The field to retrieve the name of in an exception
-     * @throws IllegalAccessException if there was an error accessing the primaryField or uniqueField
-     * @throws UniqueFieldViolationException if the primaryField value of the sourceModel object doesn't match with the primaryField value of the uniqueRow object
-     */
-    public void verifyUniqueness(Model sourceModel, Model uniqueRow, Field primaryField, Field uniqueField) throws IllegalAccessException, UniqueFieldViolationException {
-        verificator.verifyUniqueness(sourceModel, uniqueRow, primaryField, uniqueField);
     }
 
 }
