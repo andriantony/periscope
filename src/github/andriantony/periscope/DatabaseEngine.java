@@ -24,6 +24,7 @@
 package github.andriantony.periscope;
 
 import github.andriantony.periscope.annotation.Column;
+import github.andriantony.periscope.constant.SqlEngine;
 import github.andriantony.periscope.constant.Function;
 import github.andriantony.periscope.constant.WritePermission;
 import github.andriantony.periscope.exception.IllegalOperationException;
@@ -68,12 +69,24 @@ public final class DatabaseEngine {
      * Creates a new instance using the active {@link Connection}.
      *
      * @param connection The active SQL connection
+     * @throws SQLException when there is a problem accessing database connection
      */
-    public DatabaseEngine(Connection connection) {
+    public DatabaseEngine(Connection connection) throws SQLException {
         this.connection = connection;
         this.reflector = new ModelReflector();
         this.verificator = new Verificator();
-        this.builder = new QueryBuilder();
+        this.builder = new QueryBuilder(getConnectionEngine(connection));
+    }
+    
+    private SqlEngine getConnectionEngine(Connection connection) throws SQLException {
+        String product = connection.getMetaData().getDatabaseProductName().toLowerCase();
+        
+        if (product.contains("microsoft sql server"))
+            return SqlEngine.SQL_SERVER;
+        else if (product.contains("mysql"))
+            return SqlEngine.MYSQL;
+        else
+            return SqlEngine.UNKNOWN;
     }
 
     /**
