@@ -36,6 +36,7 @@ import github.andriantony.periscope.type.Expression;
 import github.andriantony.periscope.type.Model;
 import java.lang.reflect.Field;
 import java.util.Arrays;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 /**
@@ -142,7 +143,7 @@ public class Verificator {
      * @throws NotNullableException if one of the non-nullable columns is not included in the expression array
      */
     public void verifyNonNullableInsertion(Model model, Expression[] expressions) throws NotNullableException {
-        Stream<Expression> stream = Arrays.stream(expressions);
+        Supplier<Stream<Expression>> streamSupplier = () -> Arrays.stream(expressions);
         
         for (Field field : model.getClass().getDeclaredFields()) {
             if (field.isAnnotationPresent(Column.class)) {
@@ -152,7 +153,7 @@ public class Verificator {
                 boolean isNullable = columnAnnotation.nullable();
                 String columnName = columnAnnotation.name();
                 
-                if (!isPrimary && !isNullable && !stream.filter(expr -> expr.getKey().equals(columnName)).findFirst().isPresent()) {
+                if (!isPrimary && !isNullable && !streamSupplier.get().filter(expr -> expr.getKey().equals(columnName)).findFirst().isPresent()) {
                     throw new NotNullableException("Non-nullable column " + columnName + " is not marked for insertion");
                 }
             }
