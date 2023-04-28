@@ -31,7 +31,7 @@ import java.sql.Connection;
  *
  * @author Andriantony
  */
-public enum sqlEngine {
+public enum SqlEngine {
 
     /**
      * Represents a SQL Server connection type.
