@@ -23,8 +23,6 @@
  */
 package github.andriantony.periscope.util;
 
-import github.andriantony.periscope.annotation.Column;
-import github.andriantony.periscope.annotation.Primary;
 import github.andriantony.periscope.annotation.Table;
 import github.andriantony.periscope.constant.WritePermission;
 import github.andriantony.periscope.exception.IllegalOperationException;
@@ -33,18 +31,15 @@ import github.andriantony.periscope.exception.NotNullableException;
 import github.andriantony.periscope.exception.OverLimitException;
 import github.andriantony.periscope.exception.UniqueFieldViolationException;
 import github.andriantony.periscope.type.ColumnDefinition;
-import github.andriantony.periscope.type.Expression;
 import github.andriantony.periscope.type.Model;
 import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.function.Supplier;
-import java.util.stream.Stream;
 
 /**
  * A class used to verify various rules specified to a table.
- * 
+ *
  * @author Andriantony
  */
 public class Verificator {
@@ -66,71 +61,70 @@ public class Verificator {
     }
 
     /**
-     * Verify whether the field can contain null value.
+     * Verifies whether all non-nullable contains null value. Primary keys with
+     * auto increment turned on will not be verified.
      *
-     * @param model The derived table class derived from {@link Model}
-     * @param field The {@link Field} from its model object
-     * @throws IllegalAccessException if there is an error accessing the field value
-     * @throws NotNullableException if the field is marked as not nullable and contains a null value
-     */
-    public void verifyNullability(Model model, Field field) throws IllegalAccessException, NotNullableException {
-        if (!field.getAnnotation(Column.class).nullable() && field.get(model) == null) {
-            throw new NotNullableException("Field " + field.getName() + " contains null value");
-        }
-    }
-    
-    /**
-     * Verifies whether all non-nullable contains null value.
-     * Primary keys with auto increment turned on will not be verified.
-     * 
      * @param model The table object to verify value from
      * @param colMap The list of columns for operation
-     * @throws NotNullableException if one of the non-nullable columns contains null value
-     * @throws IllegalAccessException if there is an error accessing the field value
+     * @throws NotNullableException if one of the non-nullable columns contains
+     * null value
+     * @throws IllegalAccessException if there is an error accessing the field
+     * value
      */
     public void verifyNullability(Model model, LinkedHashMap<String, ColumnDefinition> colMap) throws NotNullableException, IllegalAccessException {
         for (Map.Entry<String, ColumnDefinition> entry : colMap.entrySet()) {
             ColumnDefinition column = entry.getValue();
-            
+
             if (!column.getColumn().nullable() && column.getField().get(model) == null) {
                 if (column.getPrimary() != null) {
-                    if (!column.getPrimary().auto())
+                    if (!column.getPrimary().auto()) {
                         throw new NotNullableException("Field " + column.getField().getName() + " contains null value");
-                } else
+                    }
+                } else {
                     throw new NotNullableException("Field " + column.getField().getName() + " contains null value");
+                }
             }
         }
     }
 
     /**
-     * Verify whether the value in a field is within its configured limit.
-     * If the maximum length is not specified (i.e. it is -1), then no verification will be performed.
-     * 
-     * @param model The derived table class derived from {@link Model}
-     * @param field The {@link Field} from its model object
-     * @throws OverLimitException if the length of the field value exceeds the maximum length allowed
-     * @throws IllegalAccessException if the specified field is inaccessible (i.e. not public)
+     * Verify whether all columns in the provided map has their value within
+     * their configured limit.If the maximum length is not specified (i.e. it is
+     * -1), then no verification will be performed.
+     *
+     * @param model The model to get values from
+     * @param colMap The list of columns
+     * @throws OverLimitException if one of the columns has its value exceeding
+     * its configured limit
+     * @throws java.lang.IllegalAccessException if the specified field is
+     * inaccessible (i.e. not public)
      */
-    public void verifyLength(Model model, Field field) throws OverLimitException, IllegalAccessException {
-        int maxLength = field.getAnnotation(Column.class).length();
+    public void verifyLength(Model model, LinkedHashMap<String, ColumnDefinition> colMap) throws OverLimitException, IllegalAccessException {
+        for (Map.Entry<String, ColumnDefinition> entry : colMap.entrySet()) {
+            ColumnDefinition column = entry.getValue();
+            int maxLength = column.getColumn().length();
 
-        if (maxLength > -1) {
-            Object val = field.get(model);
-            int length = val != null ? val.toString().length() : 0;
+            if (maxLength > -1) {
+                Object val = column.getField().get(model);
+                int length = val != null ? val.toString().length() : 0;
 
-            if (length > maxLength) {
-                throw new OverLimitException("The value length of field " + field.getName() + " is " + length + ", which is larger than its configured limit of " + maxLength);
+                if (length > maxLength) {
+                    throw new OverLimitException("The value length of field " + column.getField().getName() + " is " + length + ", which is larger than its configured limit of " + maxLength);
+                }
             }
         }
     }
 
     /**
-     * Verify whether the model's {@link Table} annotation contains a permission in its {@link Table#writePermissions()} array.
-     * 
+     * Verify whether the model's {@link Table} annotation contains a permission
+     * in its {@link Table#writePermissions()} array.
+     *
      * @param model The derived table class derived from {@link Model}
      * @param permission The permission to check
-     * @throws NoAnnotationException if the model or its corresponding table is not annotated with the required annotations
-     * @throws IllegalOperationException if the table does not have the specified write permission
+     * @throws NoAnnotationException if the model or its corresponding table is
+     * not annotated with the required annotations
+     * @throws IllegalOperationException if the table does not have the
+     * specified write permission
      */
     public void verifyPermission(Model model, WritePermission permission) throws NoAnnotationException, IllegalOperationException {
         verifyTableAnnotation(model);
@@ -142,43 +136,54 @@ public class Verificator {
             throw new IllegalOperationException("Table " + modelClass.getSimpleName() + " does not have the " + permission + " permission");
         }
     }
-    
+
     /**
-     * Verify whether two models have conflicting unique field values.
-     * Will throw an exception if both of them have different primary key values.
-     * 
-     * @param sourceModel The model object to compare against the uniqueRow object
-     * @param uniqueRow The model object to compare against the sourceModel object
-     * @param primaryField The primary key field that uniquely identifies the model
+     * Verify whether two models have conflicting unique field values. Will
+     * throw an exception if both of them have different primary key values.
+     *
+     * @param sourceModel The model object to compare against the uniqueRow
+     * object
+     * @param uniqueRow The model object to compare against the sourceModel
+     * object
+     * @param primaryField The primary key field that uniquely identifies the
+     * model
      * @param uniqueField The field to retrieve the name of in an exception
-     * @throws IllegalAccessException if there was an error accessing the primaryField or uniqueField
-     * @throws UniqueFieldViolationException if the primaryField value of the sourceModel object doesn't match with the primaryField value of the uniqueRow object
+     * @throws IllegalAccessException if there was an error accessing the
+     * primaryField or uniqueField
+     * @throws UniqueFieldViolationException if the primaryField value of the
+     * sourceModel object doesn't match with the primaryField value of the
+     * uniqueRow object
      */
     public void verifyUniqueness(Model sourceModel, Model uniqueRow, Field primaryField, Field uniqueField) throws IllegalAccessException, UniqueFieldViolationException {
         if (uniqueRow != null) {
-            if (!primaryField.get(sourceModel).equals(primaryField.get(uniqueRow)))
+            if (!primaryField.get(sourceModel).equals(primaryField.get(uniqueRow))) {
                 throw new UniqueFieldViolationException("The unique value " + uniqueField.get(uniqueRow) + " already exists");
+            }
         }
     }
-    
+
     /**
-     * Verify whether the provided column map already includes all non-nullable columns from the given model.
-     * 
+     * Verify whether the provided column map already includes all non-nullable
+     * columns from the given model.
+     *
      * @param columnMap The list of columns marked for insertion
      * @param allColumns All columns from a model
-     * @throws NotNullableException if one of the non-nullable column is not marked for insertion
+     * @throws NotNullableException if one of the non-nullable column is not
+     * marked for insertion
      */
-    public void verifyNonNullableInsertion(LinkedHashMap<String, ColumnDefinition> columnMap, LinkedHashMap<String, ColumnDefinition> allColumns) throws NotNullableException {        
+    public void verifyNonNullableInsertion(LinkedHashMap<String, ColumnDefinition> columnMap, LinkedHashMap<String, ColumnDefinition> allColumns) throws NotNullableException {
         for (Map.Entry<String, ColumnDefinition> entry : allColumns.entrySet()) {
             if (!columnMap.containsKey(entry.getKey())) {
                 ColumnDefinition column = entry.getValue();
-                
+
                 if (!column.getColumn().nullable()) {
                     if (column.getPrimary() != null) {
-                        if (!column.getPrimary().auto())
+                        if (!column.getPrimary().auto()) {
                             throw new NotNullableException("Non-nullable column " + column.getColumn().name() + " is not marked for insertion");
-                    } else
+                        }
+                    } else {
                         throw new NotNullableException("Non-nullable column " + column.getColumn().name() + " is not marked for insertion");
+                    }
                 }
             }
         }

@@ -30,8 +30,6 @@ import github.andriantony.periscope.annotation.Table;
 import github.andriantony.periscope.constant.Relation;
 import github.andriantony.periscope.exception.NoAnnotationException;
 import github.andriantony.periscope.exception.NoSuchColumnException;
-import github.andriantony.periscope.exception.NotNullableException;
-import github.andriantony.periscope.exception.OverLimitException;
 import github.andriantony.periscope.type.ColumnDefinition;
 import github.andriantony.periscope.type.Expression;
 import github.andriantony.periscope.type.FieldReference;
@@ -91,6 +89,14 @@ public final class ModelReflector {
         return columnMap;
     }
 
+    /**
+     * Creates a map containing all columns from a model filtered by the given filter.
+     * 
+     * @param model The model to extract columns from
+     * @param columns The list of column names
+     * @return the list of mapped columns
+     * @throws NoAnnotationException if the column is not annotated
+     */
     public LinkedHashMap<String, ColumnDefinition> getColumnMap(Model model, String[] columns) throws NoAnnotationException {
         LinkedHashMap<String, ColumnDefinition> columnMap = new LinkedHashMap<>();
         Supplier<Stream<String>> streamSupplier = () -> Arrays.stream(columns);
@@ -121,6 +127,12 @@ public final class ModelReflector {
         return columnMap;
     }
     
+    /**
+     * Returns filtered map containing only columns with unique attribute.
+     * 
+     * @param columnMap The map to get columns from
+     * @return filtered map containing only columns with unique attribute
+     */
     public LinkedHashMap<String, ColumnDefinition> getUniqueMap(LinkedHashMap<String, ColumnDefinition> columnMap) {
         LinkedHashMap<String, ColumnDefinition> uniqueMap = new LinkedHashMap<>();
         
@@ -131,6 +143,12 @@ public final class ModelReflector {
         return uniqueMap;
     }
 
+    /**
+     * Converts a linked hashmap of columns into an array containing column names.
+     * 
+     * @param columnMap The map to extract column names from
+     * @return an array containing column names
+     */
     public String[] toColumnArray(LinkedHashMap<String, ColumnDefinition> columnMap) {
         List<String> columnList = new ArrayList<>();
         
@@ -195,54 +213,6 @@ public final class ModelReflector {
         }
 
         return expression;
-    }
-
-    /**
-     * Returns an array of Expression objects representing the non-primary
-     * columns of the given Model object, optionally limited to the specified
-     * columns. Each Expression object contains the column name and the
-     * corresponding value of the column in the Model object.
-     *
-     * @param model The Model object to retrieve the non-primary columns from
-     * @param columns An array of column names to limit the selection to, or an
-     * empty array to select all non-primary columns
-     * @return an array of Expression objects representing the selected
-     * non-primary columns
-     * @throws IllegalAccessException if access to the specified field is denied
-     * @throws NotNullableException if a non-nullable field in the Model
-     * instance has a null value
-     * @throws OverLimitException if a field value in the Model instance exceeds
-     * its defined length limit
-     */
-    public Expression[] getNonPrimaryExpressions(Model model, String[] columns) throws IllegalAccessException, NotNullableException, OverLimitException {
-        List<Expression> expressions = new ArrayList<>();
-
-        if (columns.length > 0) {
-            for (Field field : model.getClass().getDeclaredFields()) {
-                field.setAccessible(true);
-
-                if (field.isAnnotationPresent(Column.class) && !field.isAnnotationPresent(Primary.class) && Arrays.stream(columns).anyMatch(field.getAnnotation(Column.class).name()::equals)) {
-                    verificator.verifyNullability(model, field);
-                    verificator.verifyLength(model, field);
-
-                    expressions.add(new Expression(field.getAnnotation(Column.class).name(), field.get(model)));
-                }
-
-            }
-        } else {
-            for (Field field : model.getClass().getDeclaredFields()) {
-                field.setAccessible(true);
-
-                if (field.isAnnotationPresent(Column.class) && !field.isAnnotationPresent(Primary.class)) {
-                    verificator.verifyNullability(model, field);
-                    verificator.verifyLength(model, field);
-
-                    expressions.add(new Expression(field.getAnnotation(Column.class).name(), field.get(model)));
-                }
-            }
-        }
-
-        return expressions.toArray(new Expression[0]);
     }
 
     /**
@@ -339,29 +309,6 @@ public final class ModelReflector {
         }
 
         return fieldReferences.toArray(new FieldReference[0]);
-    }
-
-    /**
-     * Returns an array of expression from unique columns. Unique columns with
-     * null value are not included.
-     *
-     * @param model The model to extract the fields from
-     * @param fieldExpressions The list of field expressions
-     * @return an array of expression from unique columns
-     */
-    public Expression[] getUniqueExpressions(Model model, Expression[] fieldExpressions) {
-        List<Expression> result = new ArrayList<>();
-
-        for (Field field : model.getClass().getDeclaredFields()) {
-            if (field.isAnnotationPresent(Column.class) && field.getAnnotation(Column.class).unique()) {
-                Expression expression = Arrays.stream(fieldExpressions).filter(expr -> expr.getKey().equals(field.getAnnotation(Column.class).name())).findFirst().orElse(null);
-                if (expression != null && expression.getValue() != null) {
-                    result.add(expression);
-                }
-            }
-        }
-
-        return result.toArray(new Expression[0]);
     }
     
 }

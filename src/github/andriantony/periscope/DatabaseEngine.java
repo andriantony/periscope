@@ -227,7 +227,6 @@ public final class DatabaseEngine {
      * Inserts a new row into the database table for the given model instance as well as specifying whether to include primary key..
      *
      * @param model The Retrieves a single record from the database that matches
-     * @param includePrimary The option to include primary key in insertion
      * @return The model instance to insert
      * @throws NoAnnotationException if the given {@code model} class or one of
      * its fields is missing a required annotation
@@ -244,7 +243,7 @@ public final class DatabaseEngine {
      * @throws IllegalOperationException if the model does not have the
      * {@link WritePermission#INSERT} permission
      */
-    public Integer insert(Model model, boolean includePrimary) throws NoAnnotationException, IllegalAccessException, SQLException, NotNullableException, OverLimitException, IllegalOperationException, NoSuchColumnException, ClassNotFoundException, InstantiationException, UniqueFieldViolationException {
+    public Integer insert(Model model) throws NoAnnotationException, IllegalAccessException, SQLException, NotNullableException, OverLimitException, IllegalOperationException, NoSuchColumnException, ClassNotFoundException, InstantiationException, UniqueFieldViolationException {
         verificator.verifyPermission(model, WritePermission.INSERT);
 
         Integer result = null;
@@ -255,6 +254,7 @@ public final class DatabaseEngine {
         
         verificator.verifyNonNullableInsertion(columnMap, reflector.getColumnMap(model));
         verificator.verifyNullability(model, columnMap);
+        verificator.verifyLength(model, columnMap);
         
         for (Map.Entry<String, ColumnDefinition> entry : reflector.getUniqueMap(columnMap).entrySet()) {
             Model caller = (Model) Class.forName(model.getClass().getTypeName()).newInstance();
@@ -292,31 +292,6 @@ public final class DatabaseEngine {
     }
     
     /**
-     * Inserts a new row into the database table for the given model instance.
-     * It will not include primary key by default.
-     *
-     * @param model The Retrieves a single record from the database that matches
-     * @return The model instance to insert
-     * @throws NoAnnotationException if the given {@code model} class or one of
-     * its fields is missing a required annotation
-     * @throws IllegalAccessException if access to a field is denied
-     * @throws SQLException if an error occurs while accessing the database
-     * @throws ClassNotFoundException if the class name could not be found
-     * @throws InstantiationException if the dynamic object can not be instantiated
-     * @throws NoSuchColumnException if the provided model does not have the column with specified name
-     * @throws UniqueFieldViolationException if one of the unique values already exists in the database
-     * @throws NotNullableException if a field marked with the
-     * {@link Column#nullable()} false annotation is null
-     * @throws OverLimitException if a field value length exceeds the specified limit
-     * annotation exceeds its specified limit
-     * @throws IllegalOperationException if the model does not have the
-     * {@link WritePermission#INSERT} permission
-     */
-    public Integer insert(Model model) throws NoAnnotationException, IllegalAccessException, SQLException, NotNullableException, OverLimitException, IllegalOperationException, NoSuchColumnException, ClassNotFoundException, InstantiationException, UniqueFieldViolationException {
-        return insert(model, false);
-    }
-
-    /**
      * Updates the data in the database for the specified model instance. The
      * update is performed based on the primary key value of the model, unless a
      * custom expression is specified via
@@ -347,32 +322,35 @@ public final class DatabaseEngine {
         String tableName = reflector.getName(model);
         String[] columns = model.getMarkedColumns();
         Expression[] keyExpressions = model.getExpressions().length > 0 ? model.getExpressions() : new Expression[]{reflector.getPrimaryExpression(model)};
-        Expression[] valueExpressions = reflector.getNonPrimaryExpressions(model, columns);
+        LinkedHashMap<String, ColumnDefinition> columnMap = reflector.getColumnMap(model, columns);
         
-        for (Expression uniqueExpression : reflector.getUniqueExpressions(model, valueExpressions)) {
-           Field primaryField = reflector.getPrimaryColumn(model);
-           Field uniqueField = reflector.getColumnByName(model, uniqueExpression.getKey());
-           
-           primaryField.setAccessible(true);
-           uniqueField.setAccessible(true);
-           
-           Model caller = (Model) Class.forName(model.getClass().getTypeName()).newInstance();
-           caller.express(uniqueExpression);
-           
-           Model uniqueResult = get(caller);
-           verificator.verifyUniqueness(model, uniqueResult, primaryField, uniqueField);
+        verificator.verifyNullability(model, columnMap);
+        verificator.verifyLength(model, columnMap);
+        
+        Field primaryField = reflector.getPrimaryColumn(model);
+        primaryField.setAccessible(true);
+        for (Map.Entry<String, ColumnDefinition> entry : reflector.getUniqueMap(columnMap).entrySet()) {
+            ColumnDefinition column = entry.getValue();
+            Field uniqueField = column.getField();
+            
+            Model caller = (Model) Class.forName(model.getClass().getTypeName()).newInstance();
+            caller.express(new Expression(column.getColumn().name(), column.getField().get(model)));
+            
+            Model uniqueResult = get(caller);
+            verificator.verifyUniqueness(model, uniqueResult, primaryField, uniqueField);
         }
 
         builder.reset();
-        builder.update(tableName, valueExpressions).where(keyExpressions);
+        builder.update(tableName, reflector.toColumnArray(columnMap)).where(keyExpressions);
 
         try (PreparedStatement statement = connection.prepareStatement(builder.toString())) {
-            for (int i = 0; i < valueExpressions.length; i++) {
-                statement.setObject(i + 1, valueExpressions[i].getValue());
-            }
+            int index = 1;
+            
+            for (Map.Entry<String, ColumnDefinition> entry : columnMap.entrySet())
+                statement.setObject(index++, entry.getValue().getField().get(model));
 
             for (int i = 0; i < keyExpressions.length; i++) {
-                statement.setObject(i + valueExpressions.length + 1, keyExpressions[i].getValue());
+                statement.setObject(i + columnMap.size() + 1, keyExpressions[i].getValue());
             }
 
             statement.executeUpdate();

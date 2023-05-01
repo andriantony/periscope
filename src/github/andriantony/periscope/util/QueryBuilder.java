@@ -176,15 +176,15 @@ public final class QueryBuilder {
      * array.
      *
      * @param tableName The table name to perform update to
-     * @param expressions The expressions needed to change the value
+     * @param columns columns Contains the column needed for update
      * @return this instance for further processing
      */
-    public QueryBuilder update(String tableName, Expression[] expressions) {
+    public QueryBuilder update(String tableName, String[] columns) {
         this.query.append("UPDATE ").append(tableName).append(" SET ");
 
-        for (int i = 0; i < expressions.length; i++) {
-            this.query.append(wrap(expressions[i].getKey())).append(" = ?");
-            this.query.append(i + 1 < expressions.length ? ", " : " ");
+        for (int i = 0; i < columns.length; i++) {
+            this.query.append(wrap(columns[i])).append(" = ?");
+            this.query.append(i + 1 < columns.length ? ", " : " ");
         }
 
         return this;
