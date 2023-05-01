@@ -251,9 +251,10 @@ public final class DatabaseEngine {
 
         String tableName = reflector.getName(model);
         String[] columns = model.getMarkedColumns();
-        LinkedHashMap<String, ColumnDefinition> columnMap = reflector.getColumnMap(model, columns, false);
+        LinkedHashMap<String, ColumnDefinition> columnMap = reflector.getColumnMap(model, columns);
         
         verificator.verifyNonNullableInsertion(columnMap, reflector.getColumnMap(model));
+        verificator.verifyNullability(model, columnMap);
         
         for (Map.Entry<String, ColumnDefinition> entry : reflector.getUniqueMap(columnMap).entrySet()) {
             Model caller = (Model) Class.forName(model.getClass().getTypeName()).newInstance();

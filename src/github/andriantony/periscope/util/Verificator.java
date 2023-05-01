@@ -78,6 +78,29 @@ public class Verificator {
             throw new NotNullableException("Field " + field.getName() + " contains null value");
         }
     }
+    
+    /**
+     * Verifies whether all non-nullable contains null value.
+     * Primary keys with auto increment turned on will not be verified.
+     * 
+     * @param model The table object to verify value from
+     * @param colMap The list of columns for operation
+     * @throws NotNullableException if one of the non-nullable columns contains null value
+     * @throws IllegalAccessException if there is an error accessing the field value
+     */
+    public void verifyNullability(Model model, LinkedHashMap<String, ColumnDefinition> colMap) throws NotNullableException, IllegalAccessException {
+        for (Map.Entry<String, ColumnDefinition> entry : colMap.entrySet()) {
+            ColumnDefinition column = entry.getValue();
+            
+            if (!column.getColumn().nullable() && column.getField().get(model) == null) {
+                if (column.getPrimary() != null) {
+                    if (!column.getPrimary().auto())
+                        throw new NotNullableException("Field " + column.getField().getName() + " contains null value");
+                } else
+                    throw new NotNullableException("Field " + column.getField().getName() + " contains null value");
+            }
+        }
+    }
 
     /**
      * Verify whether the value in a field is within its configured limit.
@@ -150,8 +173,12 @@ public class Verificator {
             if (!columnMap.containsKey(entry.getKey())) {
                 ColumnDefinition column = entry.getValue();
                 
-                if (!column.getColumn().nullable() && !column.IsPrimary()) {
-                    throw new NotNullableException("Non-nullable column " + column.getColumn().name() + " is not marked for insertion");
+                if (!column.getColumn().nullable()) {
+                    if (column.getPrimary() != null) {
+                        if (!column.getPrimary().auto())
+                            throw new NotNullableException("Non-nullable column " + column.getColumn().name() + " is not marked for insertion");
+                    } else
+                        throw new NotNullableException("Non-nullable column " + column.getColumn().name() + " is not marked for insertion");
                 }
             }
         }

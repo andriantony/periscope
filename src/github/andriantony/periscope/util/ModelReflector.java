@@ -91,7 +91,7 @@ public final class ModelReflector {
         return columnMap;
     }
 
-    public LinkedHashMap<String, ColumnDefinition> getColumnMap(Model model, String[] columns, boolean includePrimary) throws NoAnnotationException {
+    public LinkedHashMap<String, ColumnDefinition> getColumnMap(Model model, String[] columns) throws NoAnnotationException {
         LinkedHashMap<String, ColumnDefinition> columnMap = new LinkedHashMap<>();
         Supplier<Stream<String>> streamSupplier = () -> Arrays.stream(columns);
 
@@ -109,7 +109,7 @@ public final class ModelReflector {
                         field.setAccessible(true);
                         columnMap.put(field.getAnnotation(Column.class).name(), new ColumnDefinition(field));
                     } else {
-                        if (includePrimary) {
+                        if (!field.getAnnotation(Primary.class).auto()) {
                             field.setAccessible(true);
                             columnMap.put(field.getAnnotation(Column.class).name(), new ColumnDefinition(field));
                         }

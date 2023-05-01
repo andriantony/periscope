@@ -37,7 +37,7 @@ public final class ColumnDefinition {
 
     private final Field field;
     private final Column column;
-    private final boolean isPrimary;
+    private final Primary primary;
 
     /**
      * Creates a new instance using the given field.
@@ -51,7 +51,7 @@ public final class ColumnDefinition {
             this.field.setAccessible(true);
 
             this.column = field.getAnnotation(Column.class);
-            this.isPrimary = field.isAnnotationPresent(Primary.class);
+            this.primary = field.getAnnotation(Primary.class);
         } else {
             throw new NoAnnotationException("Field " + field.getName() + " does not have toe column annotation.");
         }
@@ -76,12 +76,12 @@ public final class ColumnDefinition {
     }
 
     /**
-     * Check whether this column is a primary key.
+     * Return the primary value.
      * 
-     * @return a boolean that checks whether this column is a primary key
+     * @return the primary value
      */
-    public boolean IsPrimary() {
-        return isPrimary;
+    public Primary getPrimary() {
+        return primary;
     }
 
 }

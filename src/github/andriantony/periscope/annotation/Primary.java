@@ -38,4 +38,12 @@ import java.lang.annotation.Target;
 @Target(ElementType.FIELD)
 public @interface Primary {
     
+    /**
+     * Specifies whether this primary key is automatically incremented on each insertion.
+     * This element is true by default.
+     * 
+     * @return the auto increment attribute
+     */
+    public boolean auto() default true;
+    
 }
