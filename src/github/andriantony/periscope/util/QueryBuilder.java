@@ -148,22 +148,22 @@ public final class QueryBuilder {
      * array.
      *
      * @param tableName The name of the table to insert into
-     * @param expressions Contains the column needed for insertion
+     * @param columns Contains the column needed for insertion
      * @return this instance for further processing
      */
-    public QueryBuilder insert(String tableName, Expression[] expressions) {
+    public QueryBuilder insert(String tableName, String[] columns) {
         this.query.append("INSERT INTO ").append(tableName).append(" (");
 
-        for (int i = 0; i < expressions.length; i++) {
-            this.query.append(wrap(expressions[i].getKey()));
-            this.query.append(i + 1 < expressions.length ? ", " : "");
+        for (int i = 0; i < columns.length; i++) {
+            this.query.append(wrap(columns[i]));
+            this.query.append(i + 1 < columns.length ? ", " : "");
         }
 
         this.query.append(") VALUES (");
 
-        for (int i = 0; i < expressions.length; i++) {
+        for (int i = 0; i < columns.length; i++) {
             this.query.append('?');
-            this.query.append(i + 1 < expressions.length ? ", " : "");
+            this.query.append(i + 1 < columns.length ? ", " : "");
         }
 
         this.query.append(") ");

@@ -32,10 +32,13 @@ import github.andriantony.periscope.exception.NoAnnotationException;
 import github.andriantony.periscope.exception.NotNullableException;
 import github.andriantony.periscope.exception.OverLimitException;
 import github.andriantony.periscope.exception.UniqueFieldViolationException;
+import github.andriantony.periscope.type.ColumnDefinition;
 import github.andriantony.periscope.type.Expression;
 import github.andriantony.periscope.type.Model;
 import java.lang.reflect.Field;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
@@ -136,25 +139,19 @@ public class Verificator {
     }
     
     /**
-     * Verify whether the provided expressions already includes all non-nullable columns from the given model.
+     * Verify whether the provided column map already includes all non-nullable columns from the given model.
      * 
-     * @param model The model to retrieve columns from
-     * @param expressions The list of expression marked for insertion
-     * @throws NotNullableException if one of the non-nullable columns is not included in the expression array
+     * @param columnMap The list of columns marked for insertion
+     * @param allColumns All columns from a model
+     * @throws NotNullableException if one of the non-nullable column is not marked for insertion
      */
-    public void verifyNonNullableInsertion(Model model, Expression[] expressions) throws NotNullableException {
-        Supplier<Stream<Expression>> streamSupplier = () -> Arrays.stream(expressions);
-        
-        for (Field field : model.getClass().getDeclaredFields()) {
-            if (field.isAnnotationPresent(Column.class)) {
-                Column columnAnnotation = field.getAnnotation(Column.class);
+    public void verifyNonNullableInsertion(LinkedHashMap<String, ColumnDefinition> columnMap, LinkedHashMap<String, ColumnDefinition> allColumns) throws NotNullableException {        
+        for (Map.Entry<String, ColumnDefinition> entry : allColumns.entrySet()) {
+            if (!columnMap.containsKey(entry.getKey())) {
+                ColumnDefinition column = entry.getValue();
                 
-                boolean isPrimary = field.isAnnotationPresent(Primary.class);
-                boolean isNullable = columnAnnotation.nullable();
-                String columnName = columnAnnotation.name();
-                
-                if (!isPrimary && !isNullable && !streamSupplier.get().filter(expr -> expr.getKey().equals(columnName)).findFirst().isPresent()) {
-                    throw new NotNullableException("Non-nullable column " + columnName + " is not marked for insertion");
+                if (!column.getColumn().nullable() && !column.IsPrimary()) {
+                    throw new NotNullableException("Non-nullable column " + column.getColumn().name() + " is not marked for insertion");
                 }
             }
         }

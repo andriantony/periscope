@@ -32,6 +32,7 @@ import github.andriantony.periscope.exception.NoAnnotationException;
 import github.andriantony.periscope.exception.NoSuchColumnException;
 import github.andriantony.periscope.exception.NotNullableException;
 import github.andriantony.periscope.exception.OverLimitException;
+import github.andriantony.periscope.type.ColumnDefinition;
 import github.andriantony.periscope.type.Expression;
 import github.andriantony.periscope.type.FieldReference;
 import github.andriantony.periscope.type.Model;
@@ -44,6 +45,7 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 /**
@@ -61,7 +63,8 @@ public final class ModelReflector {
      *
      * @param model The model derivative object
      * @return the name of table associated with provided model
-     * @throws NoAnnotationException if the specified model class is not annotated with the {@link Table} annotation
+     * @throws NoAnnotationException if the specified model class is not
+     * annotated with the {@link Table} annotation
      */
     public String getName(Model model) throws NoAnnotationException {
         verificator.verifyTableAnnotation(model);
@@ -69,39 +72,102 @@ public final class ModelReflector {
     }
 
     /**
+     * Returns the linked hashmap containing columns from a given model.
+     *
+     * @param model The model to extract columns from
+     * @return the list of mapped columns
+     * @throws NoAnnotationException if the column is not annotated
+     */
+    public LinkedHashMap<String, ColumnDefinition> getColumnMap(Model model) throws NoAnnotationException {
+        LinkedHashMap<String, ColumnDefinition> columnMap = new LinkedHashMap<>();
+
+        for (Field field : model.getClass().getDeclaredFields()) {
+            if (field.isAnnotationPresent(Column.class)) {
+                field.setAccessible(true);
+                columnMap.put(field.getAnnotation(Column.class).name(), new ColumnDefinition(field));
+            }
+        }
+
+        return columnMap;
+    }
+
+    public LinkedHashMap<String, ColumnDefinition> getColumnMap(Model model, String[] columns, boolean includePrimary) throws NoAnnotationException {
+        LinkedHashMap<String, ColumnDefinition> columnMap = new LinkedHashMap<>();
+        Supplier<Stream<String>> streamSupplier = () -> Arrays.stream(columns);
+
+        if (columns.length > 0) {
+            for (Field field : model.getClass().getDeclaredFields()) {
+                if (field.isAnnotationPresent(Column.class) && streamSupplier.get().filter(col -> col.equals(field.getAnnotation(Column.class).name())).findFirst().isPresent()) {
+                    field.setAccessible(true);
+                    columnMap.put(field.getAnnotation(Column.class).name(), new ColumnDefinition(field));
+                }
+            }
+        } else {
+            for (Field field : model.getClass().getDeclaredFields()) {
+                if (field.isAnnotationPresent(Column.class)) {
+                    if (!field.isAnnotationPresent(Primary.class)) {
+                        field.setAccessible(true);
+                        columnMap.put(field.getAnnotation(Column.class).name(), new ColumnDefinition(field));
+                    } else {
+                        if (includePrimary) {
+                            field.setAccessible(true);
+                            columnMap.put(field.getAnnotation(Column.class).name(), new ColumnDefinition(field));
+                        }
+                    }
+                }
+            }
+        }
+
+        return columnMap;
+    }
+    
+    public LinkedHashMap<String, ColumnDefinition> getUniqueMap(LinkedHashMap<String, ColumnDefinition> columnMap) {
+        LinkedHashMap<String, ColumnDefinition> uniqueMap = new LinkedHashMap<>();
+        
+        for (Map.Entry<String, ColumnDefinition> entry : columnMap.entrySet())
+            if (entry.getValue().getColumn().unique())
+                uniqueMap.put(entry.getKey(), entry.getValue());
+        
+        return uniqueMap;
+    }
+
+    public String[] toColumnArray(LinkedHashMap<String, ColumnDefinition> columnMap) {
+        List<String> columnList = new ArrayList<>();
+        
+        for (Map.Entry<String, ColumnDefinition> entry : columnMap.entrySet())
+            columnList.add(entry.getKey());
+        
+        return columnList.toArray(new String[0]);
+    }
+    
+    /**
      * Parses the specified model object from the given ResultSet rs, using the
      * specified columns.
      *
      * @param <T> the dynamic type based on {@link Model}
      * @param model The Model derivative object to parse
+     * @param columnMap The list of retrieved column maps
      * @param columns The columns to retrieve from the ResultSet
      * @param rs The ResultSet which contains the retrievable data
      * @return the new model instance containing retrieved data
      * @throws ClassNotFoundException If the {@link Model} class cannot be found
-     * @throws SQLException if a database access error occurs or if the ResultSet object is not valid
-     * @throws IllegalAccessException If the Model class or its properties cannot be accessed
+     * @throws SQLException if a database access error occurs or if the
+     * ResultSet object is not valid
+     * @throws IllegalAccessException If the Model class or its properties
+     * cannot be accessed
      * @throws InstantiationException If the Model class cannot be instantiated
      */
     @SuppressWarnings("unchecked")
-    public <T extends Model> T parse(Model model, String[] columns, ResultSet rs) throws ClassNotFoundException, SQLException, IllegalAccessException, InstantiationException {
+    public <T extends Model> T parse(Model model, LinkedHashMap<String, ColumnDefinition> columnMap, String[] columns, ResultSet rs) throws ClassNotFoundException, SQLException, IllegalAccessException, InstantiationException {
         Object result = Class.forName(model.getClass().getTypeName()).newInstance();
-        LinkedHashMap<String, Field> fields = new LinkedHashMap<>();
-
-        for (Field field : result.getClass().getDeclaredFields()) {
-            field.setAccessible(true);
-
-            if (field.isAnnotationPresent(Column.class)) {
-                fields.put(field.getAnnotation(Column.class).name(), field);
-            }
-        }
 
         if (columns.length > 0) {
             for (String column : columns) {
-                fields.get(column).set(result, rs.getObject(column));
+                columnMap.get(column).getField().set(result, rs.getObject(column));
             }
         } else {
-            for (Map.Entry<String, Field> field : fields.entrySet()) {
-                field.getValue().set(result, rs.getObject(field.getKey()));
+            for (Map.Entry<String, ColumnDefinition> columnDefEntry : columnMap.entrySet()) {
+                columnDefEntry.getValue().getField().set(result, rs.getObject(columnDefEntry.getKey()));
             }
         }
 
@@ -114,7 +180,8 @@ public final class ModelReflector {
      *
      * @param model The model to retrieve the primary expression from
      * @return expression containing value of primary key
-     * @throws IllegalAccessException If the Model class or its properties cannot be accessed
+     * @throws IllegalAccessException If the Model class or its properties
+     * cannot be accessed
      */
     public Expression getPrimaryExpression(Model model) throws IllegalAccessException {
         Expression expression = null;
@@ -142,8 +209,10 @@ public final class ModelReflector {
      * @return an array of Expression objects representing the selected
      * non-primary columns
      * @throws IllegalAccessException if access to the specified field is denied
-     * @throws NotNullableException if a non-nullable field in the Model instance has a null value
-     * @throws OverLimitException if a field value in the Model instance exceeds its defined length limit
+     * @throws NotNullableException if a non-nullable field in the Model
+     * instance has a null value
+     * @throws OverLimitException if a field value in the Model instance exceeds
+     * its defined length limit
      */
     public Expression[] getNonPrimaryExpressions(Model model, String[] columns) throws IllegalAccessException, NotNullableException, OverLimitException {
         List<Expression> expressions = new ArrayList<>();
@@ -178,10 +247,11 @@ public final class ModelReflector {
 
     /**
      * Retrieves the primary key field from the given model.
-     * 
+     *
      * @param model The model to retrieve the field from
      * @return the field object of the primary key column
-     * @throws NoSuchColumnException if the {@link Model} class does not have a primary key column
+     * @throws NoSuchColumnException if the {@link Model} class does not have a
+     * primary key column
      */
     public Field getPrimaryColumn(Model model) throws NoSuchColumnException {
         Field column = null;
@@ -198,14 +268,15 @@ public final class ModelReflector {
             throw new NoSuchColumnException("This model does not have a primary key column");
         }
     }
-    
+
     /**
      * Retrieves the field that corresponds to the given column name.
      *
      * @param model The model to retrieve the field from
      * @param name The name of the column to retrieve the field for
      * @return field object for the column with the given name
-     * @throws NoSuchColumnException if the {@link Model} class does not have a column with the given name
+     * @throws NoSuchColumnException if the {@link Model} class does not have a
+     * column with the given name
      */
     public Field getColumnByName(Model model, String name) throws NoSuchColumnException {
         Field column = null;
@@ -224,14 +295,18 @@ public final class ModelReflector {
     }
 
     /**
-     * Returns an array of {@link FieldReference} objects for all fields in the given model class that have the
-     * {@link Reference} annotation and for which a corresponding {@link ModelReference} object is present in the given
-     * array of included models.
-     * 
-     * @param model The model instance for which to retrieve the field references
-     * @param includes An array of included models that may be referenced by the fields in the given model instance
+     * Returns an array of {@link FieldReference} objects for all fields in the
+     * given model class that have the {@link Reference} annotation and for
+     * which a corresponding {@link ModelReference} object is present in the
+     * given array of included models.
+     *
+     * @param model The model instance for which to retrieve the field
+     * references
+     * @param includes An array of included models that may be referenced by the
+     * fields in the given model instance
      * @return an array of filtered {@link FieldReference} object
-     * @throws NoSuchColumnException if the {@link Model} class does not have a column with the given name
+     * @throws NoSuchColumnException if the {@link Model} class does not have a
+     * column with the given name
      */
     public FieldReference[] getReferences(Model model, ModelReference[] includes) throws NoSuchColumnException {
         List<FieldReference> fieldReferences = new ArrayList<>();
@@ -267,25 +342,26 @@ public final class ModelReflector {
     }
 
     /**
-     * Returns an array of expression from unique columns.
-     * Unique columns with null value are not included.
-     * 
+     * Returns an array of expression from unique columns. Unique columns with
+     * null value are not included.
+     *
      * @param model The model to extract the fields from
      * @param fieldExpressions The list of field expressions
      * @return an array of expression from unique columns
      */
     public Expression[] getUniqueExpressions(Model model, Expression[] fieldExpressions) {
         List<Expression> result = new ArrayList<>();
-        
+
         for (Field field : model.getClass().getDeclaredFields()) {
             if (field.isAnnotationPresent(Column.class) && field.getAnnotation(Column.class).unique()) {
                 Expression expression = Arrays.stream(fieldExpressions).filter(expr -> expr.getKey().equals(field.getAnnotation(Column.class).name())).findFirst().orElse(null);
-                if (expression != null && expression.getValue() != null)
+                if (expression != null && expression.getValue() != null) {
                     result.add(expression);
+                }
             }
         }
-        
+
         return result.toArray(new Expression[0]);
     }
-
+    
 }

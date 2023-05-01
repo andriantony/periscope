@@ -33,6 +33,7 @@ import github.andriantony.periscope.exception.NoSuchColumnException;
 import github.andriantony.periscope.exception.NotNullableException;
 import github.andriantony.periscope.exception.OverLimitException;
 import github.andriantony.periscope.exception.UniqueFieldViolationException;
+import github.andriantony.periscope.type.ColumnDefinition;
 import github.andriantony.periscope.type.Expression;
 import github.andriantony.periscope.type.FieldReference;
 import github.andriantony.periscope.type.Model;
@@ -48,7 +49,9 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * The DatabaseEngine class provides a set of methods for interacting with a
@@ -117,6 +120,7 @@ public final class DatabaseEngine {
         Expression[] expressions = model.getExpressions();
         Sort[] sorts = model.getSorts();
         ModelReference[] includedModels = model.getIncludes();
+        LinkedHashMap<String, ColumnDefinition> columnMap = reflector.getColumnMap(model);
 
         builder.reset();
         builder.select(tableName, columns).where(expressions).orderBy(sorts);
@@ -128,7 +132,7 @@ public final class DatabaseEngine {
 
             try (ResultSet rs = statement.executeQuery()) {
                 while (rs.next()) {
-                    results.add(reflector.parse(model, columns, rs));
+                    results.add(reflector.parse(model, columnMap, columns, rs));
                 }
             }
         }
@@ -220,7 +224,75 @@ public final class DatabaseEngine {
     }
 
     /**
+     * Inserts a new row into the database table for the given model instance as well as specifying whether to include primary key..
+     *
+     * @param model The Retrieves a single record from the database that matches
+     * @param includePrimary The option to include primary key in insertion
+     * @return The model instance to insert
+     * @throws NoAnnotationException if the given {@code model} class or one of
+     * its fields is missing a required annotation
+     * @throws IllegalAccessException if access to a field is denied
+     * @throws SQLException if an error occurs while accessing the database
+     * @throws ClassNotFoundException if the class name could not be found
+     * @throws InstantiationException if the dynamic object can not be instantiated
+     * @throws NoSuchColumnException if the provided model does not have the column with specified name
+     * @throws UniqueFieldViolationException if one of the unique values already exists in the database
+     * @throws NotNullableException if a field marked with the
+     * {@link Column#nullable()} false annotation is null
+     * @throws OverLimitException if a field value length exceeds the specified limit
+     * annotation exceeds its specified limit
+     * @throws IllegalOperationException if the model does not have the
+     * {@link WritePermission#INSERT} permission
+     */
+    public Integer insert(Model model, boolean includePrimary) throws NoAnnotationException, IllegalAccessException, SQLException, NotNullableException, OverLimitException, IllegalOperationException, NoSuchColumnException, ClassNotFoundException, InstantiationException, UniqueFieldViolationException {
+        verificator.verifyPermission(model, WritePermission.INSERT);
+
+        Integer result = null;
+
+        String tableName = reflector.getName(model);
+        String[] columns = model.getMarkedColumns();
+        LinkedHashMap<String, ColumnDefinition> columnMap = reflector.getColumnMap(model, columns, false);
+        
+        verificator.verifyNonNullableInsertion(columnMap, reflector.getColumnMap(model));
+        
+        for (Map.Entry<String, ColumnDefinition> entry : reflector.getUniqueMap(columnMap).entrySet()) {
+            Model caller = (Model) Class.forName(model.getClass().getTypeName()).newInstance();
+            caller.express(new Expression(entry.getValue().getColumn().name(), entry.getValue().getField().get(model)));
+            
+            Model uniqueResult = get(caller);
+            if (uniqueResult != null)
+               throw new UniqueFieldViolationException("The unique value " + entry.getValue().getField().get(model) + " already exists");
+        }
+        
+        String[] insertColumns = reflector.toColumnArray(columnMap);
+        
+        if (columns.length > 0 && columns.length != insertColumns.length)
+            throw new NoSuchColumnException("Insertion column length mismatch");
+
+        builder.reset();
+        builder.insert(tableName, insertColumns);
+
+        try (PreparedStatement statement = connection.prepareStatement(builder.toString(), Statement.RETURN_GENERATED_KEYS)) {
+            int index = 1;
+            
+            for (Map.Entry<String, ColumnDefinition> entry : columnMap.entrySet())
+                statement.setObject(index++, entry.getValue().getField().get(model));
+
+            statement.executeUpdate();
+
+            try (ResultSet rs = statement.getGeneratedKeys()) {
+                if (rs.next()) {
+                    result = rs.getInt(1);
+                }
+            }
+        }
+
+        return result;
+    }
+    
+    /**
      * Inserts a new row into the database table for the given model instance.
+     * It will not include primary key by default.
      *
      * @param model The Retrieves a single record from the database that matches
      * @return The model instance to insert
@@ -240,46 +312,7 @@ public final class DatabaseEngine {
      * {@link WritePermission#INSERT} permission
      */
     public Integer insert(Model model) throws NoAnnotationException, IllegalAccessException, SQLException, NotNullableException, OverLimitException, IllegalOperationException, NoSuchColumnException, ClassNotFoundException, InstantiationException, UniqueFieldViolationException {
-        verificator.verifyPermission(model, WritePermission.INSERT);
-
-        Integer result = null;
-
-        String tableName = reflector.getName(model);
-        String[] columns = model.getMarkedColumns();
-        Expression[] expressions = reflector.getNonPrimaryExpressions(model, columns);
-        
-        verificator.verifyNonNullableInsertion(model, expressions);
-        
-        for (Expression uniqueExpression : reflector.getUniqueExpressions(model, expressions)) {
-           Field uniqueField = reflector.getColumnByName(model, uniqueExpression.getKey());
-           uniqueField.setAccessible(true);
-           
-           Model caller = (Model) Class.forName(model.getClass().getTypeName()).newInstance();
-           caller.express(uniqueExpression);
-           
-           Model uniqueResult = get(caller);
-           if (uniqueResult != null)
-               throw new UniqueFieldViolationException("The unique value " + uniqueField.get(model) + " already exists");
-        }
-
-        builder.reset();
-        builder.insert(tableName, expressions);
-
-        try (PreparedStatement statement = connection.prepareStatement(builder.toString(), Statement.RETURN_GENERATED_KEYS)) {
-            for (int i = 0; i < expressions.length; i++) {
-                statement.setObject(i + 1, expressions[i].getValue());
-            }
-
-            statement.executeUpdate();
-
-            try (ResultSet rs = statement.getGeneratedKeys()) {
-                if (rs.next()) {
-                    result = rs.getInt(1);
-                }
-            }
-        }
-
-        return result;
+        return insert(model, false);
     }
 
     /**
