@@ -34,7 +34,7 @@ import github.andriantony.periscope.type.ColumnDefinition;
 import github.andriantony.periscope.type.Expression;
 import github.andriantony.periscope.type.FieldReference;
 import github.andriantony.periscope.type.Model;
-import github.andriantony.periscope.type.ModelReference;
+import github.andriantony.periscope.type.TableReference;
 import java.lang.reflect.Field;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -63,8 +63,8 @@ public final class ModelReflector {
      * @return the name of table associated with provided model
      * @throws NoAnnotationException if the specified model class is not
      * annotated with the {@link Table} annotation
-     */
-    public String getName(Model model) throws NoAnnotationException {
+     */ 
+    public String getName(Object model) throws NoAnnotationException {
         verificator.verifyTableAnnotation(model);
         return model.getClass().getAnnotation(Table.class).name();
     }
@@ -267,7 +267,7 @@ public final class ModelReflector {
     /**
      * Returns an array of {@link FieldReference} objects for all fields in the
      * given model class that have the {@link Reference} annotation and for
-     * which a corresponding {@link ModelReference} object is present in the
+     * which a corresponding {@link TableReference} object is present in the
      * given array of included models.
      *
      * @param model The model instance for which to retrieve the field
@@ -278,7 +278,7 @@ public final class ModelReflector {
      * @throws NoSuchColumnException if the {@link Model} class does not have a
      * column with the given name
      */
-    public FieldReference[] getReferences(Model model, ModelReference[] includes) throws NoSuchColumnException {
+    public FieldReference[] getReferences(Model model, TableReference[] includes) throws NoSuchColumnException {
         List<FieldReference> fieldReferences = new ArrayList<>();
         Class targetClass = model.getClass();
 
@@ -286,7 +286,7 @@ public final class ModelReflector {
             if (field.isAnnotationPresent(Reference.class)) {
                 String fName = field.getAnnotation(Reference.class).name();
                 Class fClass = field.getAnnotation(Reference.class).target();
-                ModelReference ref = Arrays.stream(includes).filter(include -> fName.equals(include.getName()) && include.getModel().getClass() == fClass).findFirst().orElse(null);
+                TableReference ref = Arrays.stream(includes).filter(include -> fName.equals(include.getName()) && include.getModel().getClass() == fClass).findFirst().orElse(null);
 
                 if (ref != null) {
                     Reference reference = field.getAnnotation(Reference.class);

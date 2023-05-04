@@ -36,7 +36,7 @@ import java.sql.PreparedStatement;
 public class Expression {
 
     private final String key;
-    private final Object value;
+    private Object value;
     private final Operator operator;
     private final Conjunction conjunction;
 
@@ -98,6 +98,10 @@ public class Expression {
      */
     public Object getValue() {
         return this.value;
+    }
+    
+    public void setValue(Object value) {
+        this.value = value;
     }
     
     /**

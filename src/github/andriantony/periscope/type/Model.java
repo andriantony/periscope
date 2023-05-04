@@ -34,7 +34,7 @@ public class Model {
 
     protected String[] markedColumns = new String[0];
     protected Expression[] expressions = new Expression[0];
-    protected ModelReference[] includes = new ModelReference[0];
+    protected TableReference[] includes = new TableReference[0];
     protected Sort[] sorts = new Sort[0];
 
     /**
@@ -66,7 +66,7 @@ public class Model {
      * @param includes the reference model to be included
      * @return self for method chaining
      */
-    public Model include(ModelReference... includes) {
+    public Model include(TableReference... includes) {
         this.includes = includes;
         return this;
     }
@@ -106,7 +106,7 @@ public class Model {
      * 
      * @return the list of reference inclusion
      */
-    public ModelReference[] getIncludes() {
+    public TableReference[] getIncludes() {
         return this.includes;
     }
     
@@ -125,7 +125,7 @@ public class Model {
     public void reset() {
         this.markedColumns = new String[0];
         this.expressions = new Expression[0];
-        this.includes = new ModelReference[0];
+        this.includes = new TableReference[0];
         this.sorts = new Sort[0];
     }
 

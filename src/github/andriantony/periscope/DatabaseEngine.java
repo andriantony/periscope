@@ -24,6 +24,7 @@
 package github.andriantony.periscope;
 
 import github.andriantony.periscope.annotation.Column;
+import github.andriantony.periscope.annotation.Table;
 import github.andriantony.periscope.constant.SqlEngine;
 import github.andriantony.periscope.constant.Function;
 import github.andriantony.periscope.constant.WritePermission;
@@ -37,7 +38,8 @@ import github.andriantony.periscope.type.ColumnDefinition;
 import github.andriantony.periscope.type.Expression;
 import github.andriantony.periscope.type.FieldReference;
 import github.andriantony.periscope.type.Model;
-import github.andriantony.periscope.type.ModelReference;
+import github.andriantony.periscope.type.TableReference;
+import github.andriantony.periscope.type.Modifier;
 import github.andriantony.periscope.type.Sort;
 import github.andriantony.periscope.util.ModelReflector;
 import github.andriantony.periscope.util.QueryBuilder;
@@ -119,7 +121,7 @@ public final class DatabaseEngine {
         String[] columns = model.getMarkedColumns();
         Expression[] expressions = model.getExpressions();
         Sort[] sorts = model.getSorts();
-        ModelReference[] includedModels = model.getIncludes();
+        TableReference[] includedModels = model.getIncludes();
         LinkedHashMap<String, ColumnDefinition> columnMap = reflector.getColumnMap(model);
 
         builder.reset();
@@ -158,6 +160,18 @@ public final class DatabaseEngine {
         }
 
         return (List<T>) results;
+    }
+    
+    public <T> List<T> list(Object table) throws NoAnnotationException {
+        return list(table, new Modifier());
+    }
+    
+    public <T> List<T> list(Object table, Modifier modifier) throws NoAnnotationException {
+        List<T> results = new ArrayList<>();
+        
+        String tableName = reflector.getName(table);
+        
+        return results;
     }
 
     /**

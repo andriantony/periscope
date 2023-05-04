@@ -55,7 +55,7 @@ public @interface Reference {
      * 
      * @return the class of target model
      */
-    public Class<? extends Model> target();
+    public Class<?> target();
     
     /**
      * The name of source column in one's own table. Must match one of the names defined in the {@link Column} annotation.

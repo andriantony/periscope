@@ -23,46 +23,51 @@
  */
 package github.andriantony.periscope.type;
 
-import github.andriantony.periscope.annotation.Reference;
-
 /**
- * A model reference instance that is used to include data from related tables.
- * Only used by selection queries.
- * 
+ *
  * @author Andriantony
  */
-public final class ModelReference {
+public final class Modifier {
 
-    private final String name;
-    private final Model model;
+    private String[] columns = new String[0];
+    private Expression[] expressions = new Expression[0];
+    private TableReference[] references = new TableReference[0];
+    private Sort[] sorts = new Sort[0];
 
-    /**
-     * Creates a new reference instance.
-     * 
-     * @param name The name of reference as defined in the {@link Reference#name()} property
-     * @param model The target model used to determine the appropriate return type
-     */
-    public ModelReference(String name, Model model) {
-        this.name = name;
-        this.model = model;
+    public Modifier mark(String... columns) {
+        this.columns = columns;
+        return this;
     }
 
-    /**
-     * Returns the reference name.
-     * 
-     * @return the reference name
-     */
-    public String getName() {
-        return this.name;
+    public Modifier express(Expression... expressions) {
+        this.expressions = expressions;
+        return this;
     }
 
-    /**
-     * Returns the model of target table.
-     * 
-     * @return the model of target table
-     */
-    public Model getModel() {
-        return this.model;
+    public Modifier include(TableReference... modelReferences) {
+        this.references = modelReferences;
+        return this;
+    }
+
+    public Modifier sort(Sort... sorts) {
+        this.sorts = sorts;
+        return this;
+    }
+
+    public String[] getColumns() {
+        return columns;
+    }
+
+    public Expression[] getExpressions() {
+        return expressions;
+    }
+
+    public TableReference[] getReferences() {
+        return references;
+    }
+
+    public Sort[] getSorts() {
+        return sorts;
     }
 
 }

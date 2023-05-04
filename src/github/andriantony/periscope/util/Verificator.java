@@ -59,6 +59,14 @@ public class Verificator {
             throw new NoAnnotationException("Class " + modelClass.getSimpleName() + " does not have the Table annotation");
         }
     }
+    
+    public void verifyTableAnnotation(Object model) throws NoAnnotationException {
+        Class<?> modelClass = model.getClass();
+
+        if (!modelClass.isAnnotationPresent(Table.class)) {
+            throw new NoAnnotationException("Class " + modelClass.getSimpleName() + " does not have the Table annotation");
+        }
+    }
 
     /**
      * Verifies whether all non-nullable contains null value. Primary keys with
