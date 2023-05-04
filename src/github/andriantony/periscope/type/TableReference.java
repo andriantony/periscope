@@ -35,30 +35,15 @@ public final class TableReference {
 
     private final String name;
     private final Modifier modifier;
-    private final Model model;
-
-    /**
-     * Creates a new reference instance.
-     * 
-     * @param name The name of reference as defined in the {@link Reference#name()} property
-     * @param model The target model used to determine the appropriate return type
-     */
-    public TableReference(String name, Model model) {
-        this.name = name;
-        this.modifier = new Modifier();
-        this.model = model;
-    }
     
     public TableReference(String name, Modifier modifier) {
         this.name = name;
         this.modifier = modifier;
-        this.model = new Model();
     }
     
     public TableReference(String name) {
         this.name = name;
         this.modifier = new Modifier();
-        this.model = new Model();
     }
 
     /**
@@ -72,15 +57,6 @@ public final class TableReference {
     
     public Modifier getModifier() {
         return this.modifier;
-    }
-
-    /**
-     * Returns the model of target table.
-     * 
-     * @return the model of target table
-     */
-    public Model getModel() {
-        return this.model;
     }
 
 }

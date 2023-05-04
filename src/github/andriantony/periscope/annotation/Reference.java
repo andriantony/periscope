@@ -24,7 +24,6 @@
 package github.andriantony.periscope.annotation;
 
 import github.andriantony.periscope.constant.Relation;
-import github.andriantony.periscope.type.Model;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
