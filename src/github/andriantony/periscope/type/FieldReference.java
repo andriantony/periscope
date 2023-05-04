@@ -30,7 +30,7 @@ import java.lang.reflect.Field;
  *
  * @author Andriantony
  */
-public class _FieldReference {
+public class FieldReference {
 
     private final Class<?> targetClass;
     private final Field sourceField;
@@ -38,7 +38,7 @@ public class _FieldReference {
     private final Modifier modifier;
     private final Relation relation;
 
-    public _FieldReference(Class<?> targetClass, Field sourceField, Field targetField, Modifier modifier, Relation relation) {
+    public FieldReference(Class<?> targetClass, Field sourceField, Field targetField, Modifier modifier, Relation relation) {
         this.targetClass = targetClass;
         this.sourceField = sourceField;
         this.targetField = targetField;

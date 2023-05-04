@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package github.andriantony.periscope.type;
+package github.andriantony.periscope.util;
 
 import github.andriantony.periscope.annotation.Table;
 import github.andriantony.periscope.constant.WritePermission;
@@ -30,6 +30,7 @@ import github.andriantony.periscope.exception.NoAnnotationException;
 import github.andriantony.periscope.exception.NotNullableException;
 import github.andriantony.periscope.exception.OverLimitException;
 import github.andriantony.periscope.exception.UniqueFieldViolationException;
+import github.andriantony.periscope.type.ColumnDefinition;
 import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -39,7 +40,7 @@ import java.util.Map;
  *
  * @author Andriantony
  */
-public final class _Verificator {
+public final class Verificator {
     
     public void verifyTableAnnotation(Class<?> table) throws NoAnnotationException {
         if (!table.isAnnotationPresent(Table.class)) {

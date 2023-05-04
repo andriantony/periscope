@@ -37,10 +37,10 @@ import github.andriantony.periscope.type.ColumnDefinition;
 import github.andriantony.periscope.type.Expression;
 import github.andriantony.periscope.type.TableReference;
 import github.andriantony.periscope.type.Modifier;
-import github.andriantony.periscope.type.Reflector;
+import github.andriantony.periscope.util.Reflector;
 import github.andriantony.periscope.type.Sort;
-import github.andriantony.periscope.type._FieldReference;
-import github.andriantony.periscope.type._Verificator;
+import github.andriantony.periscope.type.FieldReference;
+import github.andriantony.periscope.util.Verificator;
 import github.andriantony.periscope.util.QueryBuilder;
 import java.lang.reflect.Field;
 import java.sql.Connection;
@@ -61,13 +61,13 @@ public final class DatabaseEngine {
 
     private final Connection connection;
     private final Reflector reflector;
-    private final _Verificator verificator;
+    private final Verificator verificator;
     private final QueryBuilder builder;
 
     public DatabaseEngine(Connection connection) throws SQLException {
         this.connection = connection;
         this.reflector = new Reflector();
-        this.verificator = new _Verificator();
+        this.verificator = new Verificator();
         this.builder = new QueryBuilder(getConnectionEngine(connection));
     }
 
@@ -114,10 +114,10 @@ public final class DatabaseEngine {
         }
 
         if (tableReferences.length > 0) {
-            _FieldReference[] fieldReferences = reflector.getReferences(table, tableReferences, columnMap);
+            FieldReference[] fieldReferences = reflector.getReferences(table, tableReferences, columnMap);
 
             for (Object result : results) {
-                for (_FieldReference fieldReference : fieldReferences) {
+                for (FieldReference fieldReference : fieldReferences) {
                     Object refValue = fieldReference.getSourceField().get(result);
                     fieldReference.getModifier().getExpressions()[0].setValue(refValue);
 
@@ -167,10 +167,10 @@ public final class DatabaseEngine {
         }
 
         if (tableReferences.length > 0) {
-            _FieldReference[] fieldReferences = reflector.getReferences(table, tableReferences, columnMap);
+            FieldReference[] fieldReferences = reflector.getReferences(table, tableReferences, columnMap);
 
             if (result != null) {
-                for (_FieldReference fieldReference : fieldReferences) {
+                for (FieldReference fieldReference : fieldReferences) {
                     Object refValue = fieldReference.getSourceField().get(result);
                     fieldReference.getModifier().getExpressions()[0].setValue(refValue);
 

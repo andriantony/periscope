@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package github.andriantony.periscope.type;
+package github.andriantony.periscope.util;
 
 import github.andriantony.periscope.annotation.Column;
 import github.andriantony.periscope.annotation.Primary;
@@ -30,6 +30,10 @@ import github.andriantony.periscope.annotation.Table;
 import github.andriantony.periscope.constant.Relation;
 import github.andriantony.periscope.exception.NoAnnotationException;
 import github.andriantony.periscope.exception.NoSuchColumnException;
+import github.andriantony.periscope.type.ColumnDefinition;
+import github.andriantony.periscope.type.Expression;
+import github.andriantony.periscope.type.FieldReference;
+import github.andriantony.periscope.type.TableReference;
 import java.lang.reflect.Field;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -47,7 +51,7 @@ import java.util.stream.Stream;
  */
 public final class Reflector {
 
-    private final _Verificator verificator = new _Verificator();
+    private final Verificator verificator = new Verificator();
 
     public String getTableName(Class<?> table) throws NoAnnotationException {
         verificator.verifyTableAnnotation(table);
@@ -164,8 +168,8 @@ public final class Reflector {
         return (T) result;
     }
     
-    public _FieldReference[] getReferences(Class<?> table, TableReference[] tableReferences, LinkedHashMap<String, ColumnDefinition> columnMap) {
-        List<_FieldReference> fieldReferences = new ArrayList<>();
+    public FieldReference[] getReferences(Class<?> table, TableReference[] tableReferences, LinkedHashMap<String, ColumnDefinition> columnMap) {
+        List<FieldReference> fieldReferences = new ArrayList<>();
         
         for (Field field : table.getDeclaredFields()) {
             if (field.isAnnotationPresent(Reference.class)) {
@@ -185,12 +189,12 @@ public final class Reflector {
                     tableReference.getModifier().express(finalExpression);
                     field.setAccessible(true);
                     
-                    fieldReferences.add(new _FieldReference(targetClass, sourceField, field, tableReference.getModifier(), relation));
+                    fieldReferences.add(new FieldReference(targetClass, sourceField, field, tableReference.getModifier(), relation));
                 }
             }
         }
         
-        return fieldReferences.toArray(new _FieldReference[0]);
+        return fieldReferences.toArray(new FieldReference[0]);
     }
 
 }
