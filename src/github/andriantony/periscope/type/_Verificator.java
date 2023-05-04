@@ -24,7 +24,16 @@
 package github.andriantony.periscope.type;
 
 import github.andriantony.periscope.annotation.Table;
+import github.andriantony.periscope.constant.WritePermission;
+import github.andriantony.periscope.exception.IllegalOperationException;
 import github.andriantony.periscope.exception.NoAnnotationException;
+import github.andriantony.periscope.exception.NotNullableException;
+import github.andriantony.periscope.exception.OverLimitException;
+import github.andriantony.periscope.exception.UniqueFieldViolationException;
+import java.lang.reflect.Field;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  *
@@ -38,11 +47,70 @@ public final class _Verificator {
         }
     }
     
-    public void verifyTableAnnotation(Object table) throws NoAnnotationException {
-        Class<?> modelClass = table.getClass();
+    public void verifyPermission(Class<?> table, WritePermission permission) throws NoAnnotationException, IllegalOperationException {
+        verifyTableAnnotation(table);
+        
+        WritePermission[] permissions = table.getAnnotation(Table.class).writePermissions();
+        if (!Arrays.asList(permissions).contains(permission)) {
+            throw new IllegalOperationException("Table " + table.getSimpleName() + " does not have the " + permission + " permission");
+        }
+    }
+    
+    public void verifyNonNullableInsertion(LinkedHashMap<String, ColumnDefinition> columnMap, LinkedHashMap<String, ColumnDefinition> allColumns) throws NotNullableException {
+        for (Map.Entry<String, ColumnDefinition> entry : allColumns.entrySet()) {
+            if (!columnMap.containsKey(entry.getKey())) {
+                ColumnDefinition column = entry.getValue();
 
-        if (!modelClass.isAnnotationPresent(Table.class)) {
-            throw new NoAnnotationException("Class " + modelClass.getSimpleName() + " does not have the Table annotation");
+                if (!column.getColumn().nullable()) {
+                    if (column.getPrimary() != null) {
+                        if (!column.getPrimary().auto()) {
+                            throw new NotNullableException("Non-nullable column " + column.getColumn().name() + " is not marked for insertion");
+                        }
+                    } else {
+                        throw new NotNullableException("Non-nullable column " + column.getColumn().name() + " is not marked for insertion");
+                    }
+                }
+            }
+        }
+    }
+    
+    public void verifyNullability(Object entity, LinkedHashMap<String, ColumnDefinition> columnMap) throws NotNullableException, IllegalAccessException {
+        for (Map.Entry<String, ColumnDefinition> entry : columnMap.entrySet()) {
+            ColumnDefinition column = entry.getValue();
+
+            if (!column.getColumn().nullable() && column.getField().get(entity) == null) {
+                if (column.getPrimary() != null) {
+                    if (!column.getPrimary().auto()) {
+                        throw new NotNullableException("Field " + column.getField().getName() + " contains null value");
+                    }
+                } else {
+                    throw new NotNullableException("Field " + column.getField().getName() + " contains null value");
+                }
+            }
+        }
+    }
+    
+    public void verifyLength(Object entity, LinkedHashMap<String, ColumnDefinition> columnMap) throws OverLimitException, IllegalAccessException {
+        for (Map.Entry<String, ColumnDefinition> entry : columnMap.entrySet()) {
+            ColumnDefinition column = entry.getValue();
+            int maxLength = column.getColumn().length();
+
+            if (maxLength > -1) {
+                Object val = column.getField().get(entity);
+                int length = val != null ? val.toString().length() : 0;
+
+                if (length > maxLength) {
+                    throw new OverLimitException("The value length of field " + column.getField().getName() + " is " + length + ", which is larger than its configured limit of " + maxLength);
+                }
+            }
+        }
+    }
+    
+    public void verifyUniqueness(Object sourceEntity, Object uniqueRow, Field primaryField, Field uniqueField) throws IllegalAccessException, UniqueFieldViolationException {
+        if (uniqueRow != null) {
+            if (!primaryField.get(sourceEntity).equals(primaryField.get(uniqueRow))) {
+                throw new UniqueFieldViolationException("The unique value " + uniqueField.get(uniqueRow) + " already exists");
+            }
         }
     }
     

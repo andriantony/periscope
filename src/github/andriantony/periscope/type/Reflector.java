@@ -24,10 +24,12 @@
 package github.andriantony.periscope.type;
 
 import github.andriantony.periscope.annotation.Column;
+import github.andriantony.periscope.annotation.Primary;
 import github.andriantony.periscope.annotation.Reference;
 import github.andriantony.periscope.annotation.Table;
 import github.andriantony.periscope.constant.Relation;
 import github.andriantony.periscope.exception.NoAnnotationException;
+import github.andriantony.periscope.exception.NoSuchColumnException;
 import java.lang.reflect.Field;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -36,6 +38,7 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 /**
@@ -62,6 +65,86 @@ public final class Reflector {
         }
 
         return columnMap;
+    }
+    
+    public LinkedHashMap<String, ColumnDefinition> getColumnMap(Class<?> table, String[] columns) throws NoAnnotationException {
+        LinkedHashMap<String, ColumnDefinition> columnMap = new LinkedHashMap<>();
+        Supplier<Stream<String>> streamSupplier = () -> Arrays.stream(columns);
+
+        if (columns.length > 0) {
+            for (Field field : table.getDeclaredFields()) {
+                if (field.isAnnotationPresent(Column.class) && streamSupplier.get().filter(col -> col.equals(field.getAnnotation(Column.class).name())).findFirst().isPresent()) {
+                    field.setAccessible(true);
+                    columnMap.put(field.getAnnotation(Column.class).name(), new ColumnDefinition(field));
+                }
+            }
+        } else {
+            for (Field field : table.getDeclaredFields()) {
+                if (field.isAnnotationPresent(Column.class)) {
+                    if (!field.isAnnotationPresent(Primary.class)) {
+                        field.setAccessible(true);
+                        columnMap.put(field.getAnnotation(Column.class).name(), new ColumnDefinition(field));
+                    } else {
+                        if (!field.getAnnotation(Primary.class).auto()) {
+                            field.setAccessible(true);
+                            columnMap.put(field.getAnnotation(Column.class).name(), new ColumnDefinition(field));
+                        }
+                    }
+                }
+            }
+        }
+
+        return columnMap;
+    }
+    
+    public LinkedHashMap<String, ColumnDefinition> getUniqueMap(LinkedHashMap<String, ColumnDefinition> columnMap) {
+        LinkedHashMap<String, ColumnDefinition> uniqueMap = new LinkedHashMap<>();
+        
+        for (Map.Entry<String, ColumnDefinition> entry : columnMap.entrySet())
+            if (entry.getValue().getColumn().unique())
+                uniqueMap.put(entry.getKey(), entry.getValue());
+        
+        return uniqueMap;
+    }
+    
+    public String[] toColumnArray(LinkedHashMap<String, ColumnDefinition> columnMap) {
+        List<String> columnList = new ArrayList<>();
+        
+        for (Map.Entry<String, ColumnDefinition> entry : columnMap.entrySet())
+            columnList.add(entry.getKey());
+        
+        return columnList.toArray(new String[0]);
+    }
+    
+    public Expression getPrimaryExpression(Object entity) throws IllegalAccessException {
+        Expression expression = null;
+
+        for (Field field : entity.getClass().getDeclaredFields()) {
+            field.setAccessible(true);
+
+            if (field.isAnnotationPresent(Column.class) && field.isAnnotationPresent(Primary.class)) {
+                expression = new Expression(field.getAnnotation(Column.class).name(), field.get(entity));
+            }
+        }
+
+        return expression;
+    }
+    
+    public Field getPrimaryColumn(Class<?> table) throws NoSuchColumnException {
+        Field column = null;
+
+        for (Field field : table.getDeclaredFields()) {
+            if (field.isAnnotationPresent(Primary.class)) {
+                column = field;
+                column.setAccessible(true);
+            }
+        }
+
+        if (column != null) {
+            return column;
+        } else {
+            throw new NoSuchColumnException("This model does not have a primary key column");
+        }
     }
     
     @SuppressWarnings("unchecked")
